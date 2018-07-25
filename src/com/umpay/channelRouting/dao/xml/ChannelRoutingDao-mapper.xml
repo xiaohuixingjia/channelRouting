@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.umpay.channelRouting.dao.ChannelRoutingDao">
+
+
+	<!-- 产品核查信息表字段 ds_channel_routing -->
+	<sql id="channel_routing_column">
+		channelRouting.PRODUCT_SUITES_CODE as productSuitesCode,
+		channelRouting.MER_CODE as merCode,
+		channelRouting.OPERATOR_TYPE as operatorType,
+		channelRouting.DS_ID as dsId,
+		channelRouting.SORT as sort,
+		channelRouting.WEIGHT as weight,
+		channelRouting.USE_NEXT as useNext
+	</sql>
+	<!-- 产品核查信息表名 -->
+	<sql id="channel_routing_table_name">
+		DSP.DS_CHANNEL_ROUTING
+	</sql>
+	<!-- 获取所有产品核查信息 -->
+	<select id="getAllChannelRoutingPO" resultType="com.umpay.channelRouting.po.ChannelRoutingPO">
+		select
+		<include refid="channel_routing_column" />
+		from
+		<include refid="channel_routing_table_name" />
+		as channelRouting
+	</select>
+
+	<!-- 数据源表字段 ds_channel_data_source -->
+	<sql id="data_source_column">
+		dataSource.ID as id,
+		dataSource.NAME as name,
+		dataSource.URL as url,
+		dataSource.STATE as state,
+		dataSource.HBASE_STATE as hbaseState,
+		dataSource.HBASE_TABLE as hbaseTable,
+		dataSource.HBASE_RESULT as hbaseResult,
+		dataSource.KEY_NAMES as keyNames,
+		dataSource.ENCRYPT_TIME as encryptTime,
+		dataSource.CACHE_STATE as cacheState,
+		dataSource.NO_CACHE_RESU as noCacheResu
+	</sql>
+	<!-- 数据源表名 -->
+	<sql id="data_source_table_name">
+		DSP.DS_CHANNEL_DATA_SOURCE
+	</sql>
+	<!-- 获取所有的数据源信息 -->
+	<select id="getAllDataSourcePO" resultType="com.umpay.channelRouting.po.DataSourcePO">
+		select
+		<include refid="data_source_column" />
+		from
+		<include refid="data_source_table_name" />
+		as dataSource
+	</select>
+
+	<update id="updDSState">
+		update
+		<include refid="data_source_table_name" />
+		set STATE =#{state} where ID=#{id}
+	</update>
+
+</mapper>

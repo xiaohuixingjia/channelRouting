@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:jee="http://www.springframework.org/schema/jee" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-3.0.xsd
+    http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+    http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd">
+	
+	<!-- 引入配置文件 -->
+	<bean id="propertyConfigurer"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="ignoreResourceNotFound" value="false" />
+		<property name="ignoreUnresolvablePlaceholders" value="false" />
+		<property name="locations">
+			<list>
+				<value>classpath:jdbc_redis.properties</value>
+				<value>classpath:config.properties</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- 数据源连接池配置 使用c3p0连接池 -->
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		destroy-method="close">
+		<property name="driverClass" value="${driverClass}" />
+		<property name="jdbcUrl" value="${jdbcUrl}" />
+		<property name="user" value="${user}" />
+		<property name="password" value="${password}" />
+		<!--初始化时获取三个连接，取值应在minPoolSize与maxPoolSize之间。Default: 1 -->
+		<property name="initialPoolSize" value="1" />
+		<!-- 连接池中保留的最小连接数 -->
+		<property name="minPoolSize" value="0" />
+		<!-- 连接池中保留的最大连接数 -->
+		<property name="maxPoolSize" value="2" />
+		<!--当连接池中的连接耗尽的时候c3p0一次同时获取的连接数。Default: 5 -->
+		<property name="acquireIncrement" value="5" />
+		<!--最大空闲时间,2秒内未使用则连接被丢弃。若为0则永不丢弃。Default: 0 -->
+		<property name="maxIdleTime" value="2" />
+		<!-- c3p0全局的PreparedStatements缓存的大小。如果maxStatements与maxStatementsPerConnection均为0，则缓存不生效，只要有一个不为0，则语句的缓存就能生效。如果默认值: 
+			0 -->
+		<property name="maxStatements" value="0" />
+        <property name="maxStatementsPerConnection" value="10" />
+        <!-- 连接失败后的重试次数 -->
+        <property name="acquireRetryAttempts" value="1"/>
+	</bean>
+
+	<!-- spring和MyBatis完美整合，不需要mybatis的配置映射文件 -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<!-- 自动扫描mapping.xml文件 -->
+		<property name="mapperLocations" value="classpath:com/umpay/channelRouting/dao/xml/*-mapper.xml"></property>
+	</bean>
+	<!-- DAO接口所在包名，Spring会自动查找其下的类 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.umpay.channelRouting.dao" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
+	</bean>
+	
+	
+	<!-- spring-redis集成操作 -->
+	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+		<!-- 最大空闲连接数 -->
+		<property name="maxIdle" value="10" />
+		<!-- 最小空闲连接数 -->
+		<property name="minIdle" value="2" />
+		<!-- 在获取连接的时候检查有效性 -->
+		<property name="testOnBorrow" value="true" />
+		<!-- 在空闲时检查有效性 -->
+		<property name="testWhileIdle" value="true" />
+	</bean>
+
+	<bean id="jedisConnectionFactory"
+		class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
+		destroy-method="destroy">
+		<!-- redis服务ip -->
+		<property name="hostName" value="${redisHostName}" />
+		<!-- redis服务端口 -->
+		<property name="port" value="${redisPort}" />
+		<!-- redis服务数据库 0~15可选 -->
+		<property name="database" value="${redisDatabase}" />
+		<!-- redis服务密码 -->
+		<property name="password" value="${redisPassword}" />
+		<!-- redis连接是否使用池技术 -->
+		<property name="usePool" value="true" />
+		<!-- redis超时时间 (毫秒) -->
+		<property name="timeout" value="200" />
+		<!-- redis连接池的配置 -->
+		<property name="poolConfig" ref="jedisPoolConfig" />
+	</bean>
+	<!-- 对string操作的封装 -->
+	<bean id="stringRedisTemplate" class="org.springframework.data.redis.core.StringRedisTemplate">
+		<constructor-arg name="connectionFactory" ref="jedisConnectionFactory" />
+	</bean>
+	<!-- 操作redis的缓存实现类 -->
+	<bean id="redisCacheImpl" class="com.umpay.channelRouting.cache.impl.RedisCacheImpl">
+		<property name="stringRedisTemplate" ref="stringRedisTemplate"></property>
+		<!-- 缓存时间 -->
+		<constructor-arg name="catchTime" value="3" />
+		<!-- 缓存时间类型 1==秒; 3==分; 5==时; 7==天; -->
+		<constructor-arg name="timeType" value="7" />
+	</bean>
+	<!-- redis缓存访问方式的配置 -->
+	<bean id="visitRedis" class="com.umpay.channelRouting.visit.impl.VisitRedis">
+		<!-- 访问方式 -->
+		<constructor-arg name="visitTypeName" value="redis缓存" />
+		<!-- redis缓存使用的对象 -->
+		<property name="redisCacheImpl" ref="redisCacheImpl" />
+	</bean>
+	<!-- hbase缓存访问方式的配置 -->
+	<bean id="visitHbase" class="com.umpay.channelRouting.visit.impl.VistiHbase">
+		<constructor-arg name="visitTypeName" value="hbase二级缓存" />
+		<property name="redisCacheImpl" ref="redisCacheImpl" />
+	</bean>
+	<!-- redis缓存访问方式的配置 -->
+	<bean id="visitDS" class="com.umpay.channelRouting.visit.impl.VisitDS">
+		<constructor-arg name="visitTypeName" value="第三方数据源" />
+		<property name="redisCacheImpl" ref="redisCacheImpl" />
+	</bean>
+
+
+
+	<!-- 通道路由操作对象 -->
+	<bean id="taskHandler" class="com.umpay.channelRouting.proxyservice.TaskHandler"
+		scope="singleton">
+		<property name="channelInfo" ref="channelInfo" />
+		<property name="visit4getResus">
+			<list>
+				<ref bean="visitRedis" />
+			    <ref bean="visitHbase" /> 
+				<ref bean="visitDS" />
+			</list>
+		</property>
+		<property name="channelErrorTally" ref="channelErrorTally" />
+	</bean>
+
+	<!-- 通道路由访问对象 -->
+	<bean id="channelInfo" scope="singleton"
+		class="com.umpay.channelRouting.center.service.impl.ChannelInfo">
+		<property name="ruleTimemapInfo" ref="channelMapInfo" />
+	</bean>
+	<!-- 通道路由内存信息对象 -->
+	<bean id="channelMapInfo" scope="singleton"
+		class="com.umpay.channelRouting.center.service.impl.ChannelMapInfo">
+		<property name="thresholdConf" ref="thresholdConf" />
+		<property name="cutBackDSConf" ref="cutBackDSConf" />
+		<property name="config" ref="localConfig" />
+	</bean>
+
+	<!-- 阀值配置信息 -->
+	<bean id="thresholdConf" scope="singleton"
+		class="com.umpay.channelRouting.bean.DSThresholdConfBean">
+		<!-- 初始阀值-通道切换使用 -->
+		<property name="initThreshold" value="0" />
+		<!-- 错误增长阀值-通道切换使用 -->
+		<property name="errorStep" value="10" />
+		<!-- 未查得增长阀值-通道切换使用 -->
+		<property name="notGetStep" value="1" />
+		<!-- 正确增长阀值-通道切换使用 -->
+		<property name="successStep" value="-1" />
+		<!-- 停用阀值-通道切换使用 -->
+		<property name="stopThreshold" value="100" />
+		<!-- 告警阀值-通道切换使用 -->
+		<property name="warnThreshold" value="50" />
+		<!-- 连续未查得最大告警值-连续未查得告警 -->
+		<property name="notGetWarnThreshold" value="50"/>
+	</bean>
+
+	<!-- 数据源切回配置信息 -->
+	<bean id="cutBackDSConf" scope="singleton"
+		class="com.umpay.channelRouting.bean.CutBackDSConfBean">
+		<!-- 切回数据源间隔时间 单位为秒 -->
+		<!-- <property name="cutBackTime" value="3600" /> -->
+		<property name="cutBackTime" value="3600" />
+		<!-- 默认请求报文的存放路径 -->
+		<property name="pathOfTestMessage" value="/testMessage/" />
+		<!-- 默认请求报文的前缀名称 -->
+		<property name="prefixOfTestMessage" value="request_" />
+		<!-- 默认请求报文的尾缀名称 -->
+		<property name="suffixOfTestMessage" value=".xml" />
+		<!-- 是否启用 -->
+		<property name="enable" value="false" />
+	</bean>
+	<!-- 告警短信配置信息 -->
+	<bean id="msgWarnConf" scope="singleton"
+		class="com.umf.warnMsg.bean.MsgWarnConfBean">
+		<!-- 告警服务路径 -->
+		<property name="warnUrl" value=""></property>
+		<!-- 告警通知的手机号集合 -->
+		<property name="warnPhoneNumList">
+			<list>
+				<!--手机号 -->
+				<value></value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- 通道路由异常计数器 -->
+	<bean id="channelErrorTally" class="com.umf.warnMsg.subject.abs.impl.SubjectImpl"
+		scope="singleton">
+		<!-- 告警上限 -->
+		<property name="maxLimit" value="50" />
+		<!-- 观察者集合 -->
+		<property name="observerList">
+			<list>
+				<ref bean="wxObserver" />
+			</list>
+		</property>
+	</bean>
+	
+	<!-- 微信告警配置信息 start -->
+	<bean id="wxObserver" class="com.umf.warnMsg.observer.abs.impl.WXObserverImpl" scope="singleton">
+		<property name="warnMsg" value="通道路由异常数累计达" />
+		<property name="needNum" value="true" />
+	</bean>
+	<bean id="wxWarnConf" scope="singleton"
+		class="com.umf.warnMsg.bean.WXWarnConfBean">
+		<!-- 告警服务路径 -->
+		<property name="warnUrl" value=""></property>
+	</bean>
+	<bean id="wxWarnInfo" class="com.umf.warnMsg.bean.WXWarnInfoBean" scope="prototype" >
+		<property name="key" value="channleRouting"/>
+		<property name="first" value="通道路由告警"/>
+		<property name="remark" value="无备注"/>
+		<property name="openIdList" >
+			<list>
+				<value></value>
+			</list>
+		</property>
+	</bean>	
+	<!-- 微信告警配置信息 end -->
+	
+	
+
+	<!-- 通道路由重载线程 -->
+	<bean id="reloadService" scope="singleton"
+		class="com.umpay.channelRouting.reload.ReloadService">
+		<property name="channelInfo" ref="channelInfo" />
+	</bean>
+
+
+	<!-- spring定时器 -->
+	<!-- 配置调度工厂 -->
+	<bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="consumerListenerTrigger" />
+				<ref bean="infoQueueMonitorTrigger" />
+			</list>
+		</property>
+	</bean>
+	<!-- 触发器 -->
+	<bean id="consumerListenerTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail" ref="consumerListenerDetail" />
+		<property name="cronExpression" value="10 0 0 * * ?" />
+	</bean>
+	<!-- 配置作业 -->
+	<!-- 定时切日志strat -->
+	<bean id="consumerListenerDetail"
+		class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject" ref="consumer" />
+		<property name="targetMethod" value="printTimerLog" />
+	</bean>
+	<bean id="consumer" class="com.umpay.channelRouting.util.SimpleLogUtil"
+		scope="singleton">
+		<property name="logs">
+			<list>
+				<value>channel_routing_ds_simple</value>
+				<value>channel_routing_NO_DS_simple</value>
+			</list>
+		</property>
+	</bean>
+	<!-- 定时切日志end -->
+	
+	<!-- kafka消费日志监控start -->
+	<bean id="infoQueueMonitorTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean" >
+		<property name="jobDetail" ref="infoQueueMonitorDetail" />
+		<property name="cronExpression" value="0/5 * * * * ?" />
+	</bean>
+	<bean id="infoQueueMonitorDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean" >
+		<property name="targetObject" ref="infoQueueMonitor" />
+		<property name="targetMethod" value="execute" />
+	</bean>
+	<bean id="infoQueueMonitor" class="com.umpay.log.monitor.InfoQueueMonitor"/>
+	<!-- kafka消费日志监控end -->
+	
+	<!-- 本地缓存配置信息 -->
+	<bean id="localConfig" class="com.umpay.channelRouting.center.LocalConfig">
+		<property name="configFileMap">
+			<map>
+				<entry key="ChannelRoutingPO" value="D:/workspace/lianDongYouShi/Dps-channel-routing_20170904_xj/resource/back/ChannelRoutingPO.txt"/>
+				<entry key="DataSourcePO" value="D:/workspace/lianDongYouShi/Dps-channel-routing_20170904_xj/resource/back/DataSourcePO.txt"/>
+			</map>
+		</property>
+	</bean>
+
+
+    <!-- kafka生产线程配置开始 -->
+	<bean id="consumeLogThreadsPool" class="com.umpay.log.consume.ConsumeLocalLog2KafkaThreadsPool"
+		init-method="execute">
+		<constructor-arg index="0" value="${consumeLog.instanceCode}" />
+		<constructor-arg index="1">
+			<list>
+				<bean id="mergeTopic" class="com.umpay.log.bean.TopicConfig">
+					<constructor-arg index="0" value="${consumeLog.topicOfMerge}" />
+					<constructor-arg index="1" value="${consumeLog.topicOfMergeLogNames}" />
+					<constructor-arg index="2" value="1" />
+				</bean>
+			</list>
+		</constructor-arg>
+		<constructor-arg index="2" value="${consumeLog.threadNums}" />
+		<constructor-arg index="3" value="${consumeLog.sleepTime}" />
+	</bean>
+    <!-- kafka生产线程配置结束 -->
+</beans>

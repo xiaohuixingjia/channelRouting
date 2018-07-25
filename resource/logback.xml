@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration scan="true" scanPeriod="5" debug="false">
+
+	<Property name="log.base" value="log/" />
+
+	<!--console -->
+	<appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>[%date{yyyyMMdd HHmmss SSS}][%-5p][%t][%c{0}] - %m%n
+			</pattern>
+		</encoder>
+	</appender>
+
+	<!-- detail log -->
+	<appender name="detail"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${log.base}detail.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<FileNamePattern>${log.base}detail.%d{yyyy-MM-dd}.log
+			</FileNamePattern>
+		</rollingPolicy>
+		<encoder>
+			<pattern>[%date{yyyyMMdd HHmmss SSS}][%-5p][%t][%c{0}] - %m%n
+			</pattern>
+		</encoder>
+	</appender>
+	<!-- 通道路由访问数据源的简要日志 -->
+	<logger name="channel_routing_ds_simple" additivity="false">
+		<appender name="channel_routing_ds_simple"
+			class="ch.qos.logback.core.rolling.RollingFileAppender">
+			<file>${log.base}channel_routing_ds_simple.log</file>
+			<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+				<FileNamePattern>${log.base}channel_routing_ds_simple.%d{yyyy-MM-dd}.log
+				</FileNamePattern>
+			</rollingPolicy>
+			<encoder>
+				<pattern>[%date{yyyyMMdd HHmmss SSS}],%m%n</pattern>
+			</encoder>
+		</appender>
+	</logger>
+	<!-- 通道路由未访问数据源查得的简要日志 -->
+	<logger name="channel_routing_NO_DS_simple" additivity="false">
+		<appender name="channel_routing_NO_DS_simple"
+			class="ch.qos.logback.core.rolling.RollingFileAppender">
+			<file>${log.base}channel_routing_NO_DS_simple.log</file>
+			<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+				<FileNamePattern>${log.base}channel_routing_NO_DS_simple.%d{yyyy-MM-dd}.log
+				</FileNamePattern>
+			</rollingPolicy>
+			<encoder>
+				<pattern>%m%n</pattern>
+			</encoder>
+		</appender>
+	</logger>
+	
+	<!-- 通道路由异常日志 -->
+	<logger name="channel_error_simple" additivity="false">
+		<appender name="channel_error_simple"
+			class="ch.qos.logback.core.rolling.RollingFileAppender">
+			<file>${log.base}channel_error_simple.log</file>
+			<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+				<FileNamePattern>${log.base}channel_error_simple.%d{yyyy-MM-dd}.log
+				</FileNamePattern>
+			</rollingPolicy>
+			<encoder>
+				<pattern>%m%n</pattern>
+			</encoder>
+		</appender>
+	</logger>
+
+	<!-- 合并的响应简要日志 -->
+	<logger name="merge_response_arg_simple" additivity="false">
+		<appender name="merge_response_arg_simple"
+			class="ch.qos.logback.core.rolling.RollingFileAppender">
+			<file>${log.base}merge_response_arg_simple.log</file>
+			<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+				<FileNamePattern>${log.base}merge_response_arg_simple.%d{yyyy-MM-dd}.log
+				</FileNamePattern>
+			</rollingPolicy>
+			<encoder>
+				<pattern>%m%n</pattern>
+			</encoder>
+		</appender>
+	</logger>
+
+	<logger name="java.sql.Connection" additivity="false">
+		<level value="debug" />
+	</logger>
+
+	<logger name="java.sql.PreparedStatement" additivity="false">
+		<level value="debug" />
+	</logger>
+
+	<root level="info">
+		<appender-ref ref="stdout" />
+		<appender-ref ref="detail" />
+	</root>
+
+</configuration>

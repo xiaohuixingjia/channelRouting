@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<request>
+  <sign>3021c402c304f72bf209317636899cd5</sign>
+  <queryType>1</queryType>
+  <identityNo>110111199004170033</identityNo>
+  <name>张三李四</name>
+  <funcode>Gup10037</funcode>
+  <license>a4nn96uvw9k2vis59nyf</license>
+  <transid>test28547</transid>
+  <datetime>20160725172100</datetime>
+  <mobileid>13252043832</mobileid>
+  <merid>10001001</merid>
+</request>
